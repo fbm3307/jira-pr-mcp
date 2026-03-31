@@ -18,7 +18,6 @@ func NewListJiraFeatures(deps *Deps) Tool {
 }
 
 type listJiraFeaturesArgs struct {
-	Project    string `json:"project"`
 	Text       string `json:"text"`
 	Status     string `json:"status"`
 	StartAt    *int   `json:"start_at,omitempty"`
@@ -43,7 +42,7 @@ func (t *ListJiraFeatures) handle(ctx context.Context, _ *mcp.CallToolRequest, a
 		startAt = *args.StartAt
 	}
 
-	cacheKey := fmt.Sprintf("features:%s:%s:%s:%d:%d", args.Project, args.Text, args.Status, startAt, maxResults)
+	cacheKey := fmt.Sprintf("features:%s:%s:%d:%d", args.Text, args.Status, startAt, maxResults)
 	if cached, ok := t.deps.Jira.GetCache().Get(cacheKey); ok {
 		data, _ := json.MarshalIndent(cached, "", "  ")
 		return okText(string(data)), nil, nil

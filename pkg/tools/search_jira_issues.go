@@ -18,7 +18,6 @@ func NewSearchJiraIssues(deps *Deps) Tool {
 }
 
 type searchJiraIssuesArgs struct {
-	Project    string   `json:"project"`
 	JQL        string   `json:"jql"`
 	Text       string   `json:"text"`
 	Status     string   `json:"status"`

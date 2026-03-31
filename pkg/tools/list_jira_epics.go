@@ -18,7 +18,6 @@ func NewListJiraEpics(deps *Deps) Tool {
 }
 
 type listJiraEpicsArgs struct {
-	Project    string `json:"project"`
 	Text       string `json:"text"`
 	Status     string `json:"status"`
 	StartAt    *int   `json:"start_at,omitempty"`
@@ -43,7 +42,7 @@ func (t *ListJiraEpics) handle(ctx context.Context, _ *mcp.CallToolRequest, args
 		startAt = *args.StartAt
 	}
 
-	cacheKey := fmt.Sprintf("epics:%s:%s:%s:%d:%d", args.Project, args.Text, args.Status, startAt, maxResults)
+	cacheKey := fmt.Sprintf("epics:%s:%s:%d:%d", args.Text, args.Status, startAt, maxResults)
 	if cached, ok := t.deps.Jira.GetCache().Get(cacheKey); ok {
 		data, _ := json.MarshalIndent(cached, "", "  ")
 		return okText(string(data)), nil, nil
