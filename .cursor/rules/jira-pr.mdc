@@ -1,0 +1,64 @@
+---
+description: Workflow for linking GitHub PRs to Jira issues using the jira-pr MCP server tools
+globs:
+alwaysApply: false
+---
+
+# Jira-PR Link Workflow
+
+When the user asks to check a PR against Jira **or create a Jira issue for a PR**, ALWAYS follow this hierarchical resolution workflow. Even if the user explicitly asks to "create a Jira", you MUST search for existing issues first (Steps 2-3) before creating anything new:
+
+## Step 1: Understand the PR
+Use `get_github_pr` to fetch PR details (accepts full PR URL or owner/repo/number).
+Extract key concepts from the title, description, and changed files.
+
+## Step 2: Search for existing Tasks/Stories
+Use `search_jira_issues` with multiple search strategies to maximize coverage:
+
+1. **Keyword searches**: Run several searches with varied terms — both specific (exact tech/component names from the PR) and broad (the category of work, e.g., "technical debt", "maintenance", "dependency update").
+2. **Repo-based search**: Search by the repository name (e.g., "workload-analyzer", "account-verifier") — many issues reference the repo they belong to.
+3. **Branch/PR title search**: Search using the PR branch name or title keywords, as issue summaries often mirror branch names.
+
+Semantically compare all results against the PR content. A result doesn't need to be an exact keyword match — use your judgment to assess whether the work described in a Jira issue overlaps with the PR's changes.
+
+## Step 3: Match found
+If a matching Task/Story exists, report it with its full ancestry (Epic and Feature).
+Use `link_jira_issue_to_pr` to add the PR as a remote link on the Jira issue.
+
+### Kanban status transitions
+The board uses a Kanban workflow: **To Do → In Progress → In Review → Done**.
+After linking a PR, suggest transitioning the issue using `transition_jira_issue`:
+- PR is open → suggest moving to **"In Review"** (if currently "In Progress" or "To Do")
+- PR is merged → suggest moving to **"Done"**
+- Always confirm with the user before transitioning.
+
+## Step 4: No matching Task/Story — find an Epic
+Use `list_jira_epics` to search for a relevant Epic. Run **multiple searches** with varied terms:
+
+1. **Domain-specific terms**: keywords directly from the PR title, description, and changed files (e.g., repo name, component name, specific technology).
+2. **Category/nature terms**: classify the PR's *type of work* and search for that category:
+   - Dependency bumps, library updates, base image changes, build fixes → search "technical debt", "maintenance", "dependency updates", "library updates", "codebase refinement"
+   - CI/CD pipeline changes → search "CI", "pipeline", "build infrastructure", "Konflux"
+   - Bug fixes → search "bug", "fix", "stability", "reliability"
+   - Refactoring / cleanup → search "refactor", "technical debt", "code quality"
+   - Observability / monitoring → search "observability", "monitoring", "alerting", "metrics"
+   - Security patches → search "security", "CVE", "vulnerability"
+3. **Label-based search**: infer relevant labels from the PR's nature and search using JQL. Examples: `maintenance`, `tech-debt`, `infrastructure`, `security`, `feature`, `quality`, `alerts`, `QE`, `flaky-test`, etc. Pick whichever labels match the PR's context — don't limit to a fixed set.
+
+Cast a wide net — a small maintenance PR often belongs under a broad "tech debt" or "maintenance" Epic rather than a feature-specific one. Always present the best candidates to the user for confirmation.
+
+If a relevant Epic is found, **before creating a new Task**, list all existing children of that Epic using `search_jira_issues` with JQL `parent = <EPIC_KEY>`. Review each child to check if any already covers the PR's work — even if the wording differs. Only proceed to create a new Task if no existing child matches. Always confirm with the user before creating.
+
+## Step 5: No matching Epic — find a Feature
+Use `list_jira_features` to search for a relevant Feature.
+If found, confirm with the user, then create a new Epic under that Feature, then create a Task under the new Epic.
+
+## Step 6: No matching Feature
+List all Features and ask the user to pick one. If none exist, tell the user to create a Feature manually in Jira first.
+
+## Mandatory rules
+- **Always search before creating.** Even if the user says "create a Jira for this PR", first run Steps 1-3 to check for existing related issues. If a match is found, report it and ask the user if they still want to create a new one. Never create a duplicate.
+- Every Task must link to an Epic. Every Epic must link to a Feature. Never skip a level.
+- After creating or finding a Jira issue, always use `link_jira_issue_to_pr` to add the PR as a remote link. Ask the user if they also want a comment added to the Jira issue — don't assume either way.
+- If the PR touches multiple areas, search for each independently and report all matches.
+- When creating Epics or Tasks, write concise summaries and descriptions that match the style of existing human-written issues. Do NOT write verbose AI-style prose. Before creating, review a few existing issues to calibrate tone and brevity.
